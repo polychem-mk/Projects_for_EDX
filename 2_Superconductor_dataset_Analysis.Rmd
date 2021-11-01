@@ -4,7 +4,7 @@ author: "Mariya Kim"
 date: "10/21/2021"
 output: pdf_document
 ---
-
+  
 ### Contents.  
 &nbsp; Section 1. Introduction.  
 &nbsp; Section 2. Analysis.  
