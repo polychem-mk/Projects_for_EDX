@@ -6,7 +6,7 @@ output:
   pdf_document: default
   
 ---
-
+ 
 Plots for all **Superconductor Dataset** variables were additionally used for data analysis
 to select plots for the report and discover relationships and correlations.   
 
