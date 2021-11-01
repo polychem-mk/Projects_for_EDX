@@ -1,0 +1,156 @@
+---
+title: "Plots for Superconductor Dataset"
+author: "Mariya Kim"
+date: "10/8/2021"
+output:
+  pdf_document: default
+  
+---
+
+Plots for all **Superconductor Dataset** variables were additionally used for data analysis
+to select plots for the report and discover relationships and correlations.   
+
+(1) Distributions of the variables.  Histograms of all variables show, that there 
+no normally distributed variables in this data set and some have low variance.  
+
+(2) *critical_temp* vs variables, colored by *number_of_elements*. There are variables 
+that can be stratified by *number_of_elements* and can be found using this set of graphs.  
+
+(3) Correlations in the groups of predictors.  
+
+(4) Cluster heatmaps of feature groups also show that patterns can be found across
+all plots; some features are paired:  
+  &nbsp;&nbsp;&nbsp;   *maen* and *gmean*;  
+&nbsp;&nbsp;&nbsp;   *std* and *wtd_std*;  
+&nbsp;&nbsp;&nbsp;   *entropy* and *wtd_entropy*;  
+&nbsp;&nbsp;&nbsp;   *wtd_mean* and *wtd_gmean.*  
+  indicating similar predictors that were obtained using similar calculations.  
+&nbsp;&nbsp;&nbsp;  Also *_Density* variables stand out in many cluster heatmaps,
+as well as "range_" features.
+
+```{r, warning=FALSE, message=FALSE}
+if(!require(tidyverse)) install.packages("tidyverse")
+if(!require(readxl)) install.packages("readxl")
+if(!require(ggplot2)) install.packages("ggplot2")
+if(!require(caret)) install.packages("caret")
+if(!require(tidyr)) install.packages("tidyr")
+if(!require(reshape2)) install.packages("reshape2")
+if(!require(tinytex)) install.packages("tinytex")
+if(!require(dplyr)) install.packages("dplyr")
+if(!require(stringr)) install.packages("stringr")
+if(!require(RColorBrewer)) install.packages("RColorBrewer")
+if(!require(matrixStats)) install.packages("matrixStats")
+if(!require(tinytex)) install.packages("tinytex")
+if(!require(knitr)) install.packages("knitr")
+
+```
+
+
+
+```{r, warning=FALSE, message=FALSE}
+fileName <- "4_Superconductors.xlsx"
+superconductors <- read_excel(fileName)
+set.seed(1, sample.kind="Rounding") # if using R 3.5 or earlier, use `set.seed(1)`
+index_val <- createDataPartition(y = superconductors$critical_temp,
+                                 times = 1, p = 0.2, list = FALSE)
+# sc set, that does not have validation set rows.
+sc <- superconductors[-index_val, ] 
+# 25%  of sc set is used for Critical_temp-vs-variables plots.
+sc_small <- slice_sample(sc, prop = 0.25)
+```
+
+\pagebreak
+
+### (1) Distributions of all variables in **Superconductivty** data set.
+```{r, message=FALSE, fig.show="hold", out.width="35%"}
+cols <- 1:82
+plot_histogram_function <- sapply(cols, function(cols){
+  df <- sc[cols] %>% as.matrix()
+  plot <- hist(df, 
+               xlab=" ",
+               main = paste("Histogram of",colnames(sc)[cols]))
+  plot
+})
+```
+
+\pagebreak
+
+### (2) Critical temperature vs variables, colored by *number_of_elements*.
+```{r, message=FALSE, fig.show="hold", out.width="35%"}
+cols <- 2:81
+plot_function <- sapply(cols, function(cols){
+  df <- cbind(sc_small[cols], sc_small[82])
+  plot(df, col=sc_small$number_of_elements)
+})
+```
+
+\pagebreak
+
+### (3) Correlations in the groups of predictors.
+```{r, warning=FALSE, message=FALSE}
+col_name <- str_subset(colnames(sc), "atomic_mass") # length(col_name)
+patterns1 <- str_replace(col_name, "_atomic_mass", "")
+patt_unite <- data.frame(a = rep("^", 10), b = patterns1) 
+patterns1 <- unite(patt_unite, a, b, col = "c", sep = "") %>% pull()
+string <- toString(patterns1)
+string <- str_replace_all(string, ", ", "|")
+patterns2 <- str_replace(colnames(sc), string, "") %>% unique() 
+patterns2 <- patterns2[2:9] 
+p <- c(patterns2, patterns1) 
+```
+
+Correlation heatmaps of features that are grouped using patterns:
+```{r}
+p
+```
+
+
+```{r, fig.show="hold", message=FALSE,  out.width="35%"}
+corr_heatmaps <- map(p, function(p){
+  corr_group <-  sc[str_subset(colnames(sc), p)] %>%
+    cor() %>% data.frame()
+  
+  corr_group <- rownames_to_column(corr_group, "col_name") 
+  corr_group <- melt(corr_group) %>% 
+    set_names(c("col_name", "variable", "value"))
+  
+  plot <- corr_group %>%
+    ggplot(aes(col_name, variable, fill = value)) +
+    geom_tile() +
+    scale_fill_distiller(palette = "Reds", direction = 1)  +
+    labs(caption =  paste("Correlation heatmap of the variables in", p, "group.")) +
+    theme_minimal()+
+    theme(plot.caption.position = "panel", 
+          plot.caption = element_text(size = 14, face = "bold.italic", hjust = 0.65),
+          axis.title.x = element_blank(), 
+          axis.title.y = element_blank(),
+          axis.text.x = element_text(angle = 90, hjust = 1))
+  plot
+})
+
+corr_heatmaps
+```
+   
+   \pagebreak
+   
+### (4) discovering clusters in the groups of features using heatmap() function.  
+Features are grouped using patterns:
+```{r}
+p
+```
+
+```{r, fig.show="hold", message=FALSE, warning=FALSE, out.width="35%"}
+x <- sc[1:81]  %>% as.matrix()
+y <- sc[82] %>% round() %>% pull()
+rownames(x) <- y   # critical_temp column is turned into row names
+x <- sweep(x, 2, colMeans(x)) %>% as.matrix() # removing the center
+
+heatm_clust_col <- sapply(p, function(p){
+  ind <- which(colnames(sc) %in% colnames(sc[str_subset(colnames(sc), p)]))
+  heatmap(t(x[,ind]), col = brewer.pal(11, "Spectral"), 
+          scale = "column") 
+})
+
+heatm_clust_col
+```
+   
